@@ -49,7 +49,8 @@ impl Event {
             let ip4 = ((raw.target_ip >> 24) & 0xFF) as u8;
             resolved_path = format!("{}.{}.{}.{}:{}", ip1, ip2, ip3, ip4, raw.target_port);
         } else {
-            let kernel_filename = String::from_utf8_lossy(&raw.filename).trim_end_matches('\0').to_string();
+            let cstr_len = raw.filename.iter().position(|&c| c == 0).unwrap_or(raw.filename.len());
+            let kernel_filename = String::from_utf8_lossy(&raw.filename[..cstr_len]).to_string();
             if !kernel_filename.is_empty() {
                 resolved_path = kernel_filename;
             } else if raw.fd >= 0 {
@@ -108,6 +109,12 @@ pub fn get_opcode_name(opcode: u8) -> &'static str {
         28 => "OPENAT2",
         29 => "EPOLL_CTL",
         30 => "SPLICE",
+        31 => "PROVIDE_BUFFERS",
+        32 => "REMOVE_BUFFERS",
+        33 => "TEE",
+        34 => "SHUTDOWN",
+        35 => "UNLINKAT",
+        36 => "RENAMEAT",
         _ => "UNKNOWN",
     }
 }

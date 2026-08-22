@@ -39,12 +39,19 @@ fn handle_event(data: &[u8], detector: &mut Detector, state: &Arc<Mutex<Dashboar
     
     if let Some(mut alert) = detector.analyze(&event) {
         if (matches!(alert.risk, RiskLevel::High) || matches!(alert.risk, RiskLevel::Critical)) && st.prevention_mode {
-
             unsafe {
                 libc::kill(event.pid as i32, libc::SIGKILL);
             }
             alert.blocked = true;
         }
+        
+        // Enterprise SIEM Audit Logger
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/ioring_guard_alerts.json") {
+            let log_entry = format!("{{\"timestamp\": {}, \"pid\": {}, \"process\": \"{}\", \"target\": \"{}\", \"risk\": \"{:?}\", \"reason\": \"{}\", \"blocked\": {}}}\n",
+                event.timestamp, event.pid, event.comm, event.filename, alert.risk, alert.reason, alert.blocked);
+            let _ = std::io::Write::write_all(&mut file, log_entry.as_bytes());
+        }
+
         st.add_alert(alert);
     }
     st.add_event(event);
