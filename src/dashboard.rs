@@ -231,7 +231,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
 
             let footer = Paragraph::new(Line::from(vec![
                 Span::styled(format!(" Alerts: {} ", st.total_alerts), Style::default().fg(if st.total_alerts > 0 { Color::Red } else { Color::White })),
-                Span::raw(format!(" | Events: {} | 'p': Toggle Protection | 'n': Toggle Normal Ops | 'f': Filter | 'q': Exit", st.total_events)),
+                Span::raw(format!(" | Events: {} | 'p': Toggle Prevention | 'n': Alerts Only | 'c': Clear | 'q': Exit", st.total_events)),
             ]))
             .block(Block::default().borders(Borders::ALL));
             f.render_widget(footer, chunks[2]);
@@ -270,6 +270,13 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     },
                     KeyCode::Esc => {
                         st.scroll_offset = 0; 
+                    },
+                    KeyCode::Char('c') => {
+                        st.events.clear();
+                        st.alerts.clear();
+                        st.total_events = 0;
+                        st.total_alerts = 0;
+                        st.scroll_offset = 0;
                     }
                     _ => {}
                 }
