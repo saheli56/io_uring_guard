@@ -23,6 +23,7 @@ pub struct DashboardState {
     pub total_events: usize,
     pub total_alerts: usize,
     pub show_epoll: bool,
+    pub show_normal: bool,
     pub scroll_offset: usize,
     pub prevention_mode: bool,
 }
@@ -35,6 +36,7 @@ impl DashboardState {
             total_events: 0,
             total_alerts: 0,
             show_epoll: false,
+            show_normal: true,
             scroll_offset: 0,
             prevention_mode: false,
         }
@@ -82,9 +84,9 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             let mut st = state.lock().unwrap();
 
             let filter_status = if st.show_epoll { "OFF" } else { "ON" };
+            let normal_status = if st.show_normal { "ALL" } else { "ALERTS ONLY" };
             let scroll_status = if st.scroll_offset > 0 { format!(" | SCROLL: -{}", st.scroll_offset) } else { " | LIVE".to_string() };
             
-
             let (mode_text, mode_color) = if st.prevention_mode {
                 ("ACTIVE PREVENTION [BLOCKING]", Color::Magenta)
             } else {
@@ -93,7 +95,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             
             let header = Paragraph::new(Line::from(vec![
                 Span::styled(format!(" IORing Guard ({}) ", mode_text), Style::default().add_modifier(Modifier::BOLD).fg(mode_color)),
-                Span::raw(format!(" | Filter: {}{}", filter_status, scroll_status)),
+                Span::raw(format!(" | Filter: {} | Display: {}{}", filter_status, normal_status, scroll_status)),
             ]))
             .block(Block::default().borders(Borders::ALL));
             f.render_widget(header, chunks[0]);
@@ -106,13 +108,17 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             
             let mut rows = vec![];
             
-            let total_filtered = st.events.iter().filter(|e| st.show_epoll || e.opcode_name != "EPOLL_CTL").count();
+            let total_filtered = st.events.iter()
+                .filter(|e| st.show_epoll || e.opcode_name != "EPOLL_CTL")
+                .filter(|e| st.show_normal || st.alerts.iter().any(|a| a.event.timestamp == e.timestamp))
+                .count();
             if st.scroll_offset > total_filtered {
                 st.scroll_offset = total_filtered.saturating_sub(1);
             }
 
             let display_events: Vec<&Event> = st.events.iter()
                 .filter(|e| st.show_epoll || e.opcode_name != "EPOLL_CTL")
+                .filter(|e| st.show_normal || st.alerts.iter().any(|a| a.event.timestamp == e.timestamp))
                 .rev()
                 .skip(st.scroll_offset)
                 .take(100)
@@ -188,7 +194,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
 
             let footer = Paragraph::new(Line::from(vec![
                 Span::styled(format!(" Alerts: {} ", st.total_alerts), Style::default().fg(if st.total_alerts > 0 { Color::Red } else { Color::White })),
-                Span::raw(format!(" | Events: {} | 'p': Toggle Protection | 'f': Filter | 'q': Exit", st.total_events)),
+                Span::raw(format!(" | Events: {} | 'p': Toggle Protection | 'n': Toggle Normal Ops | 'f': Filter | 'q': Exit", st.total_events)),
             ]))
             .block(Block::default().borders(Borders::ALL));
             f.render_widget(footer, chunks[2]);
@@ -202,6 +208,10 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             if let CEvent::Key(key) = evt {
                 match key.code {
                     KeyCode::Char('q') => break,
+                    KeyCode::Char('n') => {
+                        st.show_normal = !st.show_normal;
+                        st.scroll_offset = 0;
+                    },
                     KeyCode::Char('f') => {
                         st.show_epoll = !st.show_epoll;
                         st.scroll_offset = 0; 
