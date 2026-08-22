@@ -77,7 +77,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     Constraint::Min(0),
                     Constraint::Length(3),
                 ])
-                .split(f.size());
+                .split(f.area());
 
             let middle_chunks = Layout::default()
                 .direction(Direction::Horizontal)

@@ -2,6 +2,7 @@ use plain::Plain;
 use std::fs;
 
 #[repr(C)]
+#[allow(dead_code)]
 #[derive(Default, Debug)]
 pub struct RawEvent {
     pub timestamp: u64,
@@ -19,6 +20,7 @@ pub struct RawEvent {
 
 unsafe impl Plain for RawEvent {}
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Event {
     pub id: usize,

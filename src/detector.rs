@@ -3,6 +3,7 @@ use serde::Deserialize;
 use std::fs;
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExploitSignature {
     pub cve: String,
@@ -22,6 +23,7 @@ pub enum RiskLevel {
     Critical,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Alert {
     pub event: Event,
