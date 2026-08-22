@@ -12,6 +12,8 @@ pub struct RawEvent {
     pub opcode: u8,
     pub _pad1: [u8; 3], 
     pub fd: i32,
+    pub target_ip: u32,
+    pub target_port: u16,
     pub filename: [u8; 32],
 }
 
@@ -37,14 +39,24 @@ impl Event {
             .trim_end_matches('\0')
             .to_string();
 
-        let resolved_path = if raw.fd >= 0 {
-            match fs::read_link(format!("/proc/{}/fd/{}", raw.pid, raw.fd)) {
-                Ok(path) => path.to_string_lossy().to_string(),
-                Err(_) => format!("fd:{}", raw.fd),
-            }
+        let mut resolved_path = String::new();
+        if raw.target_ip != 0 {
+            let ip1 = (raw.target_ip & 0xFF) as u8;
+            let ip2 = ((raw.target_ip >> 8) & 0xFF) as u8;
+            let ip3 = ((raw.target_ip >> 16) & 0xFF) as u8;
+            let ip4 = ((raw.target_ip >> 24) & 0xFF) as u8;
+            resolved_path = format!("{}.{}.{}.{}:{}", ip1, ip2, ip3, ip4, raw.target_port);
         } else {
-            String::new()
-        };
+            let kernel_filename = String::from_utf8_lossy(&raw.filename).trim_end_matches('\0').to_string();
+            if !kernel_filename.is_empty() {
+                resolved_path = kernel_filename;
+            } else if raw.fd >= 0 {
+                match fs::read_link(format!("/proc/{}/fd/{}", raw.pid, raw.fd)) {
+                    Ok(path) => resolved_path = path.to_string_lossy().to_string(),
+                    Err(_) => resolved_path = format!("fd:{}", raw.fd),
+                }
+            }
+        }
 
         Self {
             id: current_id,
