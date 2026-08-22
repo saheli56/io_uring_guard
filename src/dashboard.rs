@@ -68,27 +68,31 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
 
     loop {
         terminal.draw(|f| {
+            let mut st = state.lock().unwrap();
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
-                .constraints(
-                    [
-                        Constraint::Length(3),
-                        Constraint::Min(5),
-                        Constraint::Length(3),
-                    ]
-                    .as_ref(),
-                )
-                .split(f.area());
+                .constraints([
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                    Constraint::Length(3),
+                ])
+                .split(f.size());
 
-            let mut st = state.lock().unwrap();
+            let middle_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(75),
+                ])
+                .split(chunks[1]);
 
-            let filter_status = if st.show_epoll { "OFF" } else { "ON" };
+            let filter_status = if st.show_epoll { "OFF (Show All)" } else { "ON (Hide Epoll)" };
             let normal_status = if st.show_normal { "ALL" } else { "ALERTS ONLY" };
-            let scroll_status = if st.scroll_offset > 0 { format!(" | SCROLL: -{}", st.scroll_offset) } else { " | LIVE".to_string() };
+            let scroll_status = if st.scroll_offset > 0 { format!(" | SCROLL: -{}", st.scroll_offset) } else { "".to_string() };
             
             let (mode_text, mode_color) = if st.prevention_mode {
-                ("ACTIVE PREVENTION [BLOCKING]", Color::Magenta)
+                ("ACTIVE PREVENTION", Color::Red)
             } else {
                 ("PASSIVE DETECTION", Color::Cyan)
             };
@@ -99,6 +103,33 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             ]))
             .block(Block::default().borders(Borders::ALL));
             f.render_widget(header, chunks[0]);
+
+            // === THREAT MATRIX ===
+            let lpe_active = st.alerts.iter().any(|a| a.reason.contains("EDB-50808") || a.reason.contains("EDB-50828") || a.reason.contains("Privilege"));
+            let exfil_active = st.alerts.iter().any(|a| a.reason.contains("ARMO") || a.reason.contains("/etc/shadow") || a.reason.contains("id_rsa") || a.reason.contains("passwd"));
+            let dos_active = st.alerts.iter().any(|a| a.reason.contains("Denial of Service"));
+            let c2_active = st.alerts.iter().any(|a| a.reason.contains("Network I/O"));
+
+            let format_threat = |active: bool| -> Span {
+                if active {
+                    Span::styled(" [DETECTED] ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD).add_modifier(Modifier::RAPID_BLINK))
+                } else {
+                    Span::styled(" [CLEAR]    ", Style::default().fg(Color::Green))
+                }
+            };
+
+            let threat_lines = vec![
+                Line::from(vec![format_threat(lpe_active), Span::styled("Local Privilege Esc (LPE)", Style::default().fg(Color::White))]),
+                Line::from(vec![format_threat(exfil_active), Span::styled("Data Exfiltration", Style::default().fg(Color::White))]),
+                Line::from(vec![format_threat(dos_active), Span::styled("Denial of Service (DoS)", Style::default().fg(Color::White))]),
+                Line::from(vec![format_threat(c2_active), Span::styled("Malware C2 / Network", Style::default().fg(Color::White))]),
+                Line::from(""),
+                Line::from(Span::styled("Powered by Exploit-DB", Style::default().fg(Color::DarkGray))),
+            ];
+
+            let threat_matrix = Paragraph::new(threat_lines)
+                .block(Block::default().borders(Borders::ALL).title(" Threat Matrix "));
+            f.render_widget(threat_matrix, middle_chunks[0]);
 
             let selected_style = Style::default().add_modifier(Modifier::REVERSED);
             let header_table = Row::new(vec!["ID", "PID", "PROCESS", "OPERATION", "TARGET", "STATUS", "DETAILS"])
@@ -140,7 +171,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                                 crate::detector::RiskLevel::Low => "LOW",
                                 crate::detector::RiskLevel::Medium => "MEDIUM",
                                 crate::detector::RiskLevel::High => "HIGH",
-                                crate::detector::RiskLevel::Critical => "CRITICAL",
+                                crate::detector::RiskLevel::Critical => "CRIT",
                             };
                             color = match alert.risk {
                                 crate::detector::RiskLevel::Low => Color::Yellow,
@@ -179,7 +210,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             .header(header_table)
             .block(Block::default().borders(Borders::ALL).title(" Recent io_uring Activity "))
             .row_highlight_style(selected_style);
-            f.render_widget(t, chunks[1]);
+            f.render_widget(t, middle_chunks[1]);
             
             if total_filtered > 100 {
                 let scrollbar = Scrollbar::default()
@@ -193,7 +224,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     
                 f.render_stateful_widget(
                     scrollbar,
-                    chunks[1].inner(ratatui::layout::Margin { vertical: 1, horizontal: 0 }),
+                    middle_chunks[1].inner(ratatui::layout::Margin { vertical: 1, horizontal: 0 }),
                     &mut scrollbar_state,
                 );
             }
