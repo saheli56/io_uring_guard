@@ -8,7 +8,7 @@ fn main() {
     
     SkeletonBuilder::new()
         .source(bpf_src)
-        .clang_args(["-I."]) // So it finds vmlinux.h in the root directory
+        .clang_args(["-I."])
         .build_and_generate(&out.join("monitor.skel.rs"))
         .expect("bpf skeleton generation failed");
         

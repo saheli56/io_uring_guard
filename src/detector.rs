@@ -12,7 +12,7 @@ pub struct Alert {
     pub event: Event,
     pub risk: RiskLevel,
     pub reason: String,
-    pub blocked: bool, // NEW: Indicates if the process was killed
+    pub blocked: bool,
 }
 
 pub struct Detector {}

@@ -24,7 +24,7 @@ pub struct DashboardState {
     pub total_alerts: usize,
     pub show_epoll: bool,
     pub scroll_offset: usize,
-    pub prevention_mode: bool, // NEW: Active Prevention
+    pub prevention_mode: bool,
 }
 
 impl DashboardState {
@@ -36,7 +36,7 @@ impl DashboardState {
             total_alerts: 0,
             show_epoll: false,
             scroll_offset: 0,
-            prevention_mode: false, // Default to passive detection
+            prevention_mode: false,
         }
     }
 
@@ -84,7 +84,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             let filter_status = if st.show_epoll { "OFF" } else { "ON" };
             let scroll_status = if st.scroll_offset > 0 { format!(" | SCROLL: -{}", st.scroll_offset) } else { " | LIVE".to_string() };
             
-            // Prevention mode styling
+
             let (mode_text, mode_color) = if st.prevention_mode {
                 ("ACTIVE PREVENTION [BLOCKING]", Color::Magenta)
             } else {

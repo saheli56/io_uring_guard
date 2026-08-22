@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open file using traditional syscall to focus our io_uring test on the READ operation
+    
     int fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
         perror("open");
@@ -40,10 +40,10 @@ int main(int argc, char *argv[]) {
         .iov_len = BLOCK_SZ,
     };
 
-    // Prepare a READV operation via io_uring
+    
     io_uring_prep_readv(sqe, fd, &iov, 1, 0);
 
-    // Submit the SQE
+    
     ret = io_uring_submit(&ring);
     if (ret < 0) {
         fprintf(stderr, "io_uring_submit: %s\n", strerror(-ret));
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     printf("Submitted 1 SQE (IORING_OP_READV) for file '%s' (PID: %d)\n", argv[1], getpid());
 
-    // Wait for the completion
+    
     struct io_uring_cqe *cqe;
     ret = io_uring_wait_cqe(&ring, &cqe);
     if (ret < 0) {

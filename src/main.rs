@@ -39,7 +39,7 @@ fn handle_event(data: &[u8], detector: &mut Detector, state: &Arc<Mutex<Dashboar
     
     if let Some(mut alert) = detector.analyze(&event) {
         if matches!(alert.risk, RiskLevel::High) && st.prevention_mode {
-            // ASSASSINATE THE PROCESS!
+
             unsafe {
                 libc::kill(event.pid as i32, libc::SIGKILL);
             }

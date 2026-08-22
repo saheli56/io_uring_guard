@@ -25,7 +25,7 @@ int handle_file_get(struct bpf_raw_tracepoint_args *ctx) {
     int fd = (int)ctx->args[1];
 
     u8 opcode = BPF_CORE_READ(req, opcode);
-    // REMOVED HARDCODED FILTER! We now collect EVERYTHING securely.
+
 
     struct event *e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
     if (!e) return 0;

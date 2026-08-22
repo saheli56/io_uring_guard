@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     io_uring_cqe_seen(&ring, cqe);
     
-    // Simulate the time it takes malware to encrypt the data and prepare a network connection
+    
     printf("[Malware] Preparing network socket to hacker C2 server...\n");
     sleep(2);
     

@@ -19,7 +19,7 @@ unsafe impl Plain for RawEvent {}
 
 #[derive(Debug, Clone)]
 pub struct Event {
-    pub id: usize, // NEW: Unique Serial Number for the UI
+    pub id: usize,
     pub timestamp: u64,
     pub pid: u32,
     pub tgid: u32,
