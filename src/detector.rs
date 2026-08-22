@@ -54,21 +54,27 @@ impl Detector {
     }
 
     pub fn analyze(&mut self, event: &Event) -> Option<Alert> {
-        // DoS Tracker logic
-        let (last_ts, count) = self.pid_tracker.entry(event.pid).or_insert((event.timestamp, 0));
-        if event.timestamp - *last_ts > 1_000_000_000 { // 1 second in ns
-            *last_ts = event.timestamp;
-            *count = 0;
-        }
-        *count += 1;
+        // Enterprise Whitelist: Ignore DoS checks for known high-IO applications
+        let trusted_binaries = ["fio", "nginx", "postgres", "mysql"];
+        let is_trusted = trusted_binaries.contains(&event.comm.as_str());
 
-        if *count > 200 { // 200 io_uring requests per second is highly suspicious for a normal app
-            return Some(Alert {
-                event: event.clone(),
-                risk: RiskLevel::Critical,
-                reason: format!("io_uring Denial of Service (DoS) Flood Detected (>200 ops/sec)"),
-                blocked: false,
-            });
+        // DoS Tracker logic
+        if !is_trusted {
+            let (last_ts, count) = self.pid_tracker.entry(event.pid).or_insert((event.timestamp, 0));
+            if event.timestamp - *last_ts > 1_000_000_000 { // 1 second in ns
+                *last_ts = event.timestamp;
+                *count = 0;
+            }
+            *count += 1;
+
+            if *count > 200 { // 200 io_uring requests per second is highly suspicious for a normal app
+                return Some(Alert {
+                    event: event.clone(),
+                    risk: RiskLevel::Critical,
+                    reason: format!("io_uring Denial of Service (DoS) Flood Detected (>200 ops/sec)"),
+                    blocked: false,
+                });
+            }
         }
         for sig in &self.signatures {
             if sig.target_opcodes.contains(&event.opcode_name.to_string()) {
