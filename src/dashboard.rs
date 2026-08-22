@@ -101,7 +101,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             f.render_widget(header, chunks[0]);
 
             let selected_style = Style::default().add_modifier(Modifier::REVERSED);
-            let header_table = Row::new(vec!["ID", "PID", "PROCESS", "OPERATION", "TARGET", "STATUS"])
+            let header_table = Row::new(vec!["ID", "PID", "PROCESS", "OPERATION", "TARGET", "STATUS", "DETAILS"])
                 .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
                 .height(1)
                 .bottom_margin(1);
@@ -127,9 +127,11 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             for e in display_events {
                 let mut status_str = "OK";
                 let mut color = Color::Green;
+                let mut details_str = String::new();
                 
                 for alert in &st.alerts {
                     if alert.event.timestamp == e.timestamp {
+                        details_str = alert.reason.clone();
                         if alert.blocked {
                             status_str = "KILLED!";
                             color = Color::Magenta;
@@ -160,17 +162,19 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     Span::raw(e.opcode_name.to_string()),
                     Span::raw(target.to_string()),
                     Span::styled(status_str.to_string(), Style::default().fg(color).add_modifier(Modifier::BOLD)),
+                    Span::styled(details_str, Style::default().fg(Color::DarkGray)),
                 ];
                 rows.push(Row::new(cells).height(1).bottom_margin(0));
             }
 
             let t = Table::new(rows, [
-                Constraint::Length(9),
-                Constraint::Length(8),
-                Constraint::Length(15),
-                Constraint::Length(15),
-                Constraint::Min(20),
-                Constraint::Length(10),
+                Constraint::Length(6),  // ID
+                Constraint::Length(8),  // PID
+                Constraint::Length(15), // PROCESS
+                Constraint::Length(15), // OPERATION
+                Constraint::Length(25), // TARGET
+                Constraint::Length(10), // STATUS
+                Constraint::Min(50),    // DETAILS
             ])
             .header(header_table)
             .block(Block::default().borders(Borders::ALL).title(" Recent io_uring Activity "))

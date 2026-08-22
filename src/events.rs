@@ -105,6 +105,7 @@ pub fn get_opcode_name(opcode: u8) -> &'static str {
         27 => "RECV",
         28 => "OPENAT2",
         29 => "EPOLL_CTL",
+        30 => "SPLICE",
         _ => "UNKNOWN",
     }
 }

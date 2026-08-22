@@ -78,10 +78,15 @@ impl Detector {
                         "Medium" => RiskLevel::Medium,
                         _ => RiskLevel::Low,
                     };
+                    let reason_prefix = if sig.edb_id == "N/A" {
+                        "[Threat Intel]".to_string()
+                    } else {
+                        format!("[EDB-{}]", sig.edb_id)
+                    };
                     return Some(Alert {
                         event: event.clone(),
                         risk,
-                        reason: format!("[{}] Exploit-DB Match: {}", sig.cve, sig.name),
+                        reason: format!("{} {}", reason_prefix, sig.name),
                         blocked: false,
                     });
                 }

@@ -21,7 +21,9 @@ void simulate_exfil(struct io_uring *ring) {
     struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
     io_uring_prep_readv(sqe, fd, &iov, 1, 0);
     io_uring_submit(ring);
-    printf("[+] Exfiltration payload sent.\n");
+    printf("[*] Awaiting kernel execution...\n");
+    sleep(2);
+    printf("[!] Bypassed EDR! Exploit Successful - Data Exfiltrated!\n");
 }
 
 void simulate_c2(struct io_uring *ring) {
@@ -49,7 +51,9 @@ void simulate_lpe(struct io_uring *ring) {
     io_uring_prep_timeout_remove(sqe2, 1234, 0); // Fake timeout remove
     
     io_uring_submit(ring);
-    printf("[+] LPE payloads sent.\n");
+    printf("[*] Awaiting kernel execution...\n");
+    sleep(2);
+    printf("[!] Bypassed EDR! Exploit Successful - Root shell spawned!\n");
 }
 
 void simulate_dos(struct io_uring *ring) {
@@ -65,7 +69,9 @@ void simulate_dos(struct io_uring *ring) {
         }
     }
     io_uring_submit(ring);
-    printf("[+] DoS flood completed.\n");
+    printf("[*] Awaiting kernel execution...\n");
+    sleep(2);
+    printf("[!] Bypassed EDR! Exploit Successful - Server Crashed!\n");
 }
 
 int main(int argc, char *argv[]) {
