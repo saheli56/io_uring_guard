@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Row, Table, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Paragraph, Row, Table, Scrollbar, ScrollbarOrientation, ScrollbarState, Chart, Dataset, Axis, GraphType},
     Terminal,
 };
 use crossterm::{
@@ -26,6 +26,8 @@ pub struct DashboardState {
     pub show_normal: bool,
     pub scroll_offset: usize,
     pub prevention_mode: bool,
+    pub sparkline_data: Vec<u64>,
+    pub last_event_count: usize,
 }
 
 impl DashboardState {
@@ -39,6 +41,8 @@ impl DashboardState {
             show_normal: true,
             scroll_offset: 0,
             prevention_mode: false,
+            sparkline_data: vec![0; 100],
+            last_event_count: 0,
         }
     }
 
@@ -69,6 +73,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
     loop {
         terminal.draw(|f| {
             let mut st = state.lock().unwrap();
+
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
@@ -78,6 +83,17 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     Constraint::Length(3),
                 ])
                 .split(f.area());
+            
+            // Sparkline update logic (IOPS tracking)
+            let current_events = st.total_events;
+            let diff = current_events.saturating_sub(st.last_event_count);
+            st.last_event_count = current_events;
+            st.sparkline_data.push(diff as u64);
+            
+            // We trim the array to ensure new data is visible immediately, not pushed off-screen
+            while st.sparkline_data.len() > 100 { // Max buffer size
+                st.sparkline_data.remove(0);
+            }
 
             let middle_chunks = Layout::default()
                 .direction(Direction::Horizontal)
@@ -86,6 +102,14 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     Constraint::Percentage(75),
                 ])
                 .split(chunks[1]);
+
+            let left_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Length(10), // Threat Matrix
+                    Constraint::Min(0),     // Sparkline
+                ])
+                .split(middle_chunks[0]);
 
             let filter_status = if st.show_epoll { "OFF (Show All)" } else { "ON (Hide Epoll)" };
             let normal_status = if st.show_normal { "ALL" } else { "ALERTS ONLY" };
@@ -129,7 +153,44 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
 
             let threat_matrix = Paragraph::new(threat_lines)
                 .block(Block::default().borders(Borders::ALL).title(" Threat Matrix "));
-            f.render_widget(threat_matrix, middle_chunks[0]);
+            f.render_widget(threat_matrix, left_chunks[0]);
+
+            let max_val = st.sparkline_data.iter().max().unwrap_or(&0).clone() as f64;
+            let y_upper = if max_val > 10.0 { max_val } else { 10.0 };
+
+            // Create (x, y) coordinates for the chart
+            let chart_data: Vec<(f64, f64)> = st.sparkline_data
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| (i as f64, v as f64))
+                .collect();
+
+            let datasets = vec![
+                Dataset::default()
+                    .name("IOPS")
+                    .marker(ratatui::symbols::Marker::Braille)
+                    .graph_type(GraphType::Line)
+                    .style(Style::default().fg(Color::Green))
+                    .data(&chart_data)
+            ];
+
+            let x_axis = Axis::default()
+                .title("Time")
+                .style(Style::default().fg(Color::DarkGray))
+                .bounds([0.0, 100.0])
+                .labels(vec![Span::from("-5s"), Span::from("Now")]);
+
+            let y_axis = Axis::default()
+                .title("Ops")
+                .style(Style::default().fg(Color::DarkGray))
+                .bounds([0.0, y_upper])
+                .labels(vec![Span::from("0"), Span::from(format!("{}", y_upper))]);
+
+            let chart = Chart::new(datasets)
+                .block(Block::default().title(" Live IOPS ").borders(Borders::ALL))
+                .x_axis(x_axis)
+                .y_axis(y_axis);
+            f.render_widget(chart, left_chunks[1]);
 
             let selected_style = Style::default().add_modifier(Modifier::REVERSED);
             let header_table = Row::new(vec!["ID", "PID", "PROCESS", "OPERATION", "TARGET", "STATUS", "DETAILS"])
@@ -189,7 +250,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 let cells = vec![
                     Span::styled(format!("#{}", e.id), Style::default().fg(Color::DarkGray)),
                     Span::raw(e.pid.to_string()),
-                    Span::raw(e.comm.clone()),
+                    Span::raw(format!("{}{}", e.pcomm, e.comm)),
                     Span::raw(e.opcode_name.to_string()),
                     Span::raw(target.to_string()),
                     Span::styled(status_str.to_string(), Style::default().fg(color).add_modifier(Modifier::BOLD)),

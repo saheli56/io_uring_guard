@@ -28,6 +28,7 @@ pub struct Event {
     pub pid: u32,
     pub tgid: u32,
     pub uid: u32,
+    pub pcomm: String,
     pub comm: String,
     pub opcode: u8,
     pub opcode_name: &'static str,
@@ -61,12 +62,24 @@ impl Event {
             }
         }
 
+        let mut pcomm_str = String::new();
+        if let Ok(stat) = fs::read_to_string(format!("/proc/{}/stat", raw.pid)) {
+            let parts: Vec<&str> = stat.split_whitespace().collect();
+            if parts.len() > 3 {
+                let ppid = parts[3];
+                if let Ok(pcomm_raw) = fs::read_to_string(format!("/proc/{}/comm", ppid)) {
+                    pcomm_str = format!("{}->", pcomm_raw.trim());
+                }
+            }
+        }
+
         Self {
             id: current_id,
             timestamp: raw.timestamp,
             pid: raw.pid,
             tgid: raw.tgid,
             uid: raw.uid,
+            pcomm: pcomm_str,
             comm,
             opcode: raw.opcode,
             opcode_name: get_opcode_name(raw.opcode),
