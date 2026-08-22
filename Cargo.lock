@@ -706,6 +706,8 @@ dependencies = [
  "libc",
  "plain",
  "ratatui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
