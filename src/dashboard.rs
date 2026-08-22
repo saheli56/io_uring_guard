@@ -171,7 +171,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                                 crate::detector::RiskLevel::Low => "LOW",
                                 crate::detector::RiskLevel::Medium => "MEDIUM",
                                 crate::detector::RiskLevel::High => "HIGH",
-                                crate::detector::RiskLevel::Critical => "CRIT",
+                                crate::detector::RiskLevel::Critical => "CRITICAL",
                             };
                             color = match alert.risk {
                                 crate::detector::RiskLevel::Low => Color::Yellow,
