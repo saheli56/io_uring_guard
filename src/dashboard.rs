@@ -84,14 +84,12 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 ])
                 .split(f.area());
             
-            // Sparkline update logic (IOPS tracking)
             let current_events = st.total_events;
             let diff = current_events.saturating_sub(st.last_event_count);
             st.last_event_count = current_events;
             st.sparkline_data.push(diff as u64);
             
-            // We trim the array to ensure new data is visible immediately, not pushed off-screen
-            while st.sparkline_data.len() > 100 { // Max buffer size
+            while st.sparkline_data.len() > 100 {
                 st.sparkline_data.remove(0);
             }
 
@@ -106,8 +104,8 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             let left_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(10), // Threat Matrix
-                    Constraint::Min(0),     // Sparkline
+                    Constraint::Length(10),
+                    Constraint::Min(0),
                 ])
                 .split(middle_chunks[0]);
 
@@ -129,7 +127,6 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)));
             f.render_widget(header, chunks[0]);
 
-            // === THREAT MATRIX ===
             let lpe_active = st.alerts.iter().any(|a| a.reason.contains("EDB-50808") || a.reason.contains("EDB-50828") || a.reason.contains("Privilege"));
             let exfil_active = st.alerts.iter().any(|a| a.reason.contains("ARMO") || a.reason.contains("/etc/shadow") || a.reason.contains("id_rsa") || a.reason.contains("passwd"));
             let dos_active = st.alerts.iter().any(|a| a.reason.contains("Denial of Service"));
@@ -159,7 +156,6 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             let max_val = st.sparkline_data.iter().max().unwrap_or(&0).clone() as f64;
             let y_upper = if max_val > 10.0 { max_val } else { 10.0 };
 
-            // Create (x, y) coordinates for the chart
             let chart_data: Vec<(f64, f64)> = st.sparkline_data
                 .iter()
                 .enumerate()
@@ -264,13 +260,13 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             }
 
             let t = Table::new(rows, [
-                Constraint::Percentage(4),  // ID
-                Constraint::Percentage(8),  // PID
-                Constraint::Percentage(16), // PROCESS
-                Constraint::Percentage(8),  // OPERATION
-                Constraint::Percentage(10), // TARGET
-                Constraint::Percentage(8),  // STATUS
-                Constraint::Percentage(46), // DETAILS
+                Constraint::Percentage(4),
+                Constraint::Percentage(8),
+                Constraint::Percentage(16),
+                Constraint::Percentage(8),
+                Constraint::Percentage(10),
+                Constraint::Percentage(8),
+                Constraint::Percentage(46),
             ])
             .header(header_table)
             .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)).title(" Recent io_uring Activity "))

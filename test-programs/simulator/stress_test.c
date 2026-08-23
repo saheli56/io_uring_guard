@@ -10,7 +10,6 @@
 
 void *attack_thread(void *arg) {
     struct io_uring ring;
-    // Initialize a separate ring for each thread to maximize concurrency
     if (io_uring_queue_init(64, &ring, 0) < 0) {
         return NULL;
     }
@@ -19,7 +18,6 @@ void *attack_thread(void *arg) {
         struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
         if (!sqe) continue;
 
-        // Spam OPENAT on /etc/shadow to trigger the "Data Exfiltration" signature
         io_uring_prep_openat(sqe, AT_FDCWD, "/etc/shadow", O_RDONLY, 0);
 
         io_uring_submit(&ring);
@@ -27,7 +25,6 @@ void *attack_thread(void *arg) {
         struct io_uring_cqe *cqe;
         io_uring_wait_cqe(&ring, &cqe);
         
-        // If the open succeeded (running as root), close the fd
         if (cqe->res >= 0) {
             close(cqe->res);
         }

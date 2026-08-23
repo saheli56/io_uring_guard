@@ -45,10 +45,10 @@ void simulate_c2(struct io_uring *ring) {
 void simulate_lpe(struct io_uring *ring) {
     printf("[*] Simulating LPE (DirtyPipe/UAF via SPLICE & TIMEOUT_REMOVE)...\n");
     struct io_uring_sqe *sqe1 = io_uring_get_sqe(ring);
-    io_uring_prep_splice(sqe1, 0, -1, 1, -1, 1024, 0); // Fake splice
+    io_uring_prep_splice(sqe1, 0, -1, 1, -1, 1024, 0);
     
     struct io_uring_sqe *sqe2 = io_uring_get_sqe(ring);
-    io_uring_prep_timeout_remove(sqe2, 1234, 0); // Fake timeout remove
+    io_uring_prep_timeout_remove(sqe2, 1234, 0);
     
     io_uring_submit(ring);
     printf("[*] Awaiting kernel execution...\n");

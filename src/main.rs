@@ -43,9 +43,23 @@ fn handle_event(data: &[u8], detector: &mut Detector, state: &Arc<Mutex<Dashboar
                 libc::kill(event.pid as i32, libc::SIGKILL);
             }
             alert.blocked = true;
+
+            let target_file = event.filename.clone();
+            if !target_file.is_empty() && target_file != "-" && !target_file.starts_with("fd:") {
+                thread::spawn(move || {
+                    let vault_dir = "/tmp/ioring_vault";
+                    let _ = std::fs::create_dir_all(vault_dir);
+                    if let Ok(metadata) = std::fs::symlink_metadata(&target_file) {
+                        if metadata.is_file() {
+                            let file_name = std::path::Path::new(&target_file).file_name().unwrap_or_default();
+                            let backup_path = format!("{}/SECURED_{}_{}", vault_dir, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(), file_name.to_string_lossy());
+                            let _ = std::fs::copy(&target_file, backup_path);
+                        }
+                    }
+                });
+            }
         }
         
-        // Enterprise SIEM Audit Logger
         if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open("/tmp/ioring_guard_alerts.json") {
             let log_entry = format!("{{\"timestamp\": {}, \"pid\": {}, \"process\": \"{}\", \"target\": \"{}\", \"risk\": \"{:?}\", \"reason\": \"{}\", \"blocked\": {}}}\n",
                 event.timestamp, event.pid, event.comm, event.filename, alert.risk, alert.reason, alert.blocked);

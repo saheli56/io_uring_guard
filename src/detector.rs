@@ -34,7 +34,7 @@ pub struct Alert {
 
 pub struct Detector {
     signatures: Vec<ExploitSignature>,
-    pid_tracker: HashMap<u32, (u64, usize)>, // PID -> (last_timestamp, count)
+    pid_tracker: HashMap<u32, (u64, usize)>,
 }
 
 impl Detector {
@@ -56,20 +56,18 @@ impl Detector {
     }
 
     pub fn analyze(&mut self, event: &Event) -> Option<Alert> {
-        // Enterprise Whitelist: Ignore DoS checks for known high-IO applications
         let trusted_binaries = ["fio", "nginx", "postgres", "mysql"];
         let is_trusted = trusted_binaries.contains(&event.comm.as_str());
 
-        // DoS Tracker logic
         if !is_trusted {
             let (last_ts, count) = self.pid_tracker.entry(event.pid).or_insert((event.timestamp, 0));
-            if event.timestamp - *last_ts > 1_000_000_000 { // 1 second in ns
+            if event.timestamp - *last_ts > 1_000_000_000 {
                 *last_ts = event.timestamp;
                 *count = 0;
             }
             *count += 1;
 
-            if *count > 200 { // 200 io_uring requests per second is highly suspicious for a normal app
+            if *count > 200 {
                 return Some(Alert {
                     event: event.clone(),
                     risk: RiskLevel::Critical,
