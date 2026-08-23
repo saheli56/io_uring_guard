@@ -264,13 +264,13 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             }
 
             let t = Table::new(rows, [
-                Constraint::Length(6),  // ID
-                Constraint::Length(12), // PID
-                Constraint::Length(15), // PROCESS
-                Constraint::Length(15), // OPERATION
-                Constraint::Length(25), // TARGET
-                Constraint::Length(10), // STATUS
-                Constraint::Min(50),    // DETAILS
+                Constraint::Percentage(4),  // ID
+                Constraint::Percentage(8),  // PID
+                Constraint::Percentage(16), // PROCESS
+                Constraint::Percentage(8),  // OPERATION
+                Constraint::Percentage(10), // TARGET
+                Constraint::Percentage(8),  // STATUS
+                Constraint::Percentage(46), // DETAILS
             ])
             .header(header_table)
             .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)).title(" Recent io_uring Activity "))

@@ -38,9 +38,8 @@ pub struct Event {
 
 impl Event {
     pub fn from_raw(raw: &RawEvent, current_id: usize) -> Self {
-        let comm = String::from_utf8_lossy(&raw.comm)
-            .trim_end_matches('\0')
-            .to_string();
+        let comm_len = raw.comm.iter().position(|&c| c == 0).unwrap_or(raw.comm.len());
+        let comm = String::from_utf8_lossy(&raw.comm[..comm_len]).to_string();
 
         let mut resolved_path = String::new();
         if raw.target_ip != 0 {
