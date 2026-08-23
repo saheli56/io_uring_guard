@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Row, Table, Scrollbar, ScrollbarOrientation, ScrollbarState, Chart, Dataset, Axis, GraphType},
+    widgets::{Block, Borders, BorderType, Paragraph, Row, Table, Scrollbar, ScrollbarOrientation, ScrollbarState, Chart, Dataset, Axis, GraphType},
     Terminal,
 };
 use crossterm::{
@@ -123,9 +123,10 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             
             let header = Paragraph::new(Line::from(vec![
                 Span::styled(format!(" IORing Guard ({}) ", mode_text), Style::default().add_modifier(Modifier::BOLD).fg(mode_color)),
-                Span::raw(format!(" | Filter: {} | Display: {}{}", filter_status, normal_status, scroll_status)),
+                Span::styled(format!(" | Filter: {} | Display: {}{}", filter_status, normal_status, scroll_status), Style::default().fg(Color::Gray)),
             ]))
-            .block(Block::default().borders(Borders::ALL));
+            .alignment(ratatui::layout::Alignment::Center)
+            .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)));
             f.render_widget(header, chunks[0]);
 
             // === THREAT MATRIX ===
@@ -152,7 +153,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             ];
 
             let threat_matrix = Paragraph::new(threat_lines)
-                .block(Block::default().borders(Borders::ALL).title(" Threat Matrix "));
+                .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)).title(" Threat Matrix "));
             f.render_widget(threat_matrix, left_chunks[0]);
 
             let max_val = st.sparkline_data.iter().max().unwrap_or(&0).clone() as f64;
@@ -187,7 +188,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 .labels(vec![Span::from("0"), Span::from(format!("{}", y_upper))]);
 
             let chart = Chart::new(datasets)
-                .block(Block::default().title(" Live IOPS ").borders(Borders::ALL))
+                .block(Block::default().title(" Live IOPS ").borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)))
                 .x_axis(x_axis)
                 .y_axis(y_axis);
             f.render_widget(chart, left_chunks[1]);
@@ -204,7 +205,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 .filter(|e| st.show_epoll || e.opcode_name != "EPOLL_CTL")
                 .filter(|e| st.show_normal || st.alerts.iter().any(|a| a.event.timestamp == e.timestamp))
                 .count();
-            if st.scroll_offset > total_filtered {
+            if st.scroll_offset > total_filtered.saturating_sub(1) {
                 st.scroll_offset = total_filtered.saturating_sub(1);
             }
 
@@ -216,7 +217,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 .take(100)
                 .collect();
 
-            for e in display_events {
+            for (i, e) in display_events.iter().enumerate() {
                 let mut status_str = "OK";
                 let mut color = Color::Green;
                 let mut details_str = String::new();
@@ -256,7 +257,9 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                     Span::styled(status_str.to_string(), Style::default().fg(color).add_modifier(Modifier::BOLD)),
                     Span::styled(details_str, Style::default().fg(Color::DarkGray)),
                 ];
-                rows.push(Row::new(cells).height(1).bottom_margin(0));
+                
+                let bg_color = if i % 2 == 0 { Color::Reset } else { Color::Rgb(25, 25, 25) };
+                rows.push(Row::new(cells).style(Style::default().bg(bg_color)).height(1).bottom_margin(0));
             }
 
             let t = Table::new(rows, [
@@ -269,7 +272,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 Constraint::Min(50),    // DETAILS
             ])
             .header(header_table)
-            .block(Block::default().borders(Borders::ALL).title(" Recent io_uring Activity "))
+            .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)).title(" Recent io_uring Activity "))
             .row_highlight_style(selected_style);
             f.render_widget(t, middle_chunks[1]);
             
@@ -294,7 +297,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 Span::styled(format!(" Alerts: {} ", st.total_alerts), Style::default().fg(if st.total_alerts > 0 { Color::Red } else { Color::White })),
                 Span::raw(format!(" | Events: {} | 'p': Toggle Prevention | 'n': Alerts Only | 'c': Clear | 'q': Exit", st.total_events)),
             ]))
-            .block(Block::default().borders(Borders::ALL));
+            .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded).border_style(Style::default().fg(Color::DarkGray)));
             f.render_widget(footer, chunks[2]);
         })?;
 
@@ -318,16 +321,22 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                         st.prevention_mode = !st.prevention_mode;
                     },
                     KeyCode::Up => {
-                        st.scroll_offset = st.scroll_offset.saturating_add(1);
-                    },
-                    KeyCode::Down => {
                         st.scroll_offset = st.scroll_offset.saturating_sub(1);
                     },
+                    KeyCode::Down => {
+                        st.scroll_offset = st.scroll_offset.saturating_add(1);
+                    },
                     KeyCode::PageUp => {
-                        st.scroll_offset = st.scroll_offset.saturating_add(20);
+                        st.scroll_offset = st.scroll_offset.saturating_sub(20);
                     },
                     KeyCode::PageDown => {
-                        st.scroll_offset = st.scroll_offset.saturating_sub(20);
+                        st.scroll_offset = st.scroll_offset.saturating_add(20);
+                    },
+                    KeyCode::Home => {
+                        st.scroll_offset = 0;
+                    },
+                    KeyCode::End => {
+                        st.scroll_offset = usize::MAX;
                     },
                     KeyCode::Esc => {
                         st.scroll_offset = 0; 
@@ -346,10 +355,10 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
             if let CEvent::Mouse(mouse_event) = evt {
                 match mouse_event.kind {
                     crossterm::event::MouseEventKind::ScrollUp => {
-                        st.scroll_offset = st.scroll_offset.saturating_add(3);
+                        st.scroll_offset = st.scroll_offset.saturating_sub(3);
                     },
                     crossterm::event::MouseEventKind::ScrollDown => {
-                        st.scroll_offset = st.scroll_offset.saturating_sub(3);
+                        st.scroll_offset = st.scroll_offset.saturating_add(3);
                     },
                     _ => {}
                 }
