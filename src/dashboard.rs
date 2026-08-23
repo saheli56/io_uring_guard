@@ -247,10 +247,11 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
                 }
 
                 let target = if e.filename.is_empty() { "-" } else { &e.filename };
+                let pid_str = if e.pid == e.tgid { e.pid.to_string() } else { format!("{}:{}", e.pid, e.tgid) };
 
                 let cells = vec![
                     Span::styled(format!("#{}", e.id), Style::default().fg(Color::DarkGray)),
-                    Span::raw(e.pid.to_string()),
+                    Span::raw(pid_str),
                     Span::raw(format!("{}{}", e.pcomm, e.comm)),
                     Span::raw(e.opcode_name.to_string()),
                     Span::raw(target.to_string()),
@@ -264,7 +265,7 @@ pub fn run_dashboard(state: Arc<Mutex<DashboardState>>) -> Result<(), Box<dyn st
 
             let t = Table::new(rows, [
                 Constraint::Length(6),  // ID
-                Constraint::Length(8),  // PID
+                Constraint::Length(12), // PID
                 Constraint::Length(15), // PROCESS
                 Constraint::Length(15), // OPERATION
                 Constraint::Length(25), // TARGET
